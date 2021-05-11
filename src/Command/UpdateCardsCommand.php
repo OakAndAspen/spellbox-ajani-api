@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Entity\Card;
 use App\Entity\Edition;
 use App\Entity\Face;
+use App\Entity\Legality;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -149,7 +150,8 @@ class UpdateCardsCommand extends Command
 
         $this->em->persist($card);
 
-        $this->updateCardFaces($card, $data);
+        $card = $this->updateCardFaces($card, $data);
+        $card = $this->updateCardLegality($card, $data);
 
         return $card;
     }
@@ -183,9 +185,30 @@ class UpdateCardsCommand extends Command
             $face->setFaceIndex(0);
             $this->updateFace($face, $data);
         }
+
+        return $card;
     }
 
-    private function updateFace($face, $data) {
+    private function updateCardLegality(Card $card, $data) {
+
+        foreach ($data['legalities'] as $f => $l) {
+            $legality = null;
+            foreach($card->getLegalities() as $el) {
+                if($el->getFormat() === $f) $legality = $el;
+            }
+            if(!$legality) $legality = new Legality();
+
+            $legality->setCard($card);
+            $legality->setFormat($f);
+            $legality->setLegality($l);
+
+            $this->em->persist($legality);
+        }
+
+        return $card;
+    }
+
+    private function updateFace(Face $face, $data) {
 
         $face->setName($data['name']);
         if(isset($data['mana_cost'])) $face->setManaCost($data['mana_cost']);
