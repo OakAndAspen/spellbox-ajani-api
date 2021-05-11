@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Card;
 use App\Entity\Edition;
+use App\Entity\Face;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -99,20 +100,7 @@ class UpdateCardsCommand extends Command
             if ($card === null) $card = new Card();
 
             // Update the card's data
-            $card->setEdition($set);
-            $card->setName($c['name']);
-            $card->setCollectorNumber($c['collector_number']);
-            $card->setCmc($c['cmc']);
-            $card->setColorIdentity($c['color_identity']);
-            $card->setRarity($c['rarity']);
-            $card->setReleasedAt(new \DateTime($c['released_at']));
-            $card->setIsReprint($c['reprint']);
-            $card->setLayout($c['layout']);
-            $card->setBorderColor($c['border_color']);
-            if (isset($c['prices']['usd'])) $card->setPriceUsd($c['prices']['usd']);
-            if (isset($c['prices']['eur'])) $card->setPriceEur($c['prices']['eur']);
-
-            $this->em->persist($card);
+            $this->updateCard($card, $c, $set);
         }
 
         $cardSection->overwrite('Saving the cards in the database...');
@@ -143,5 +131,75 @@ class UpdateCardsCommand extends Command
         }
 
         return $cards;
+    }
+
+    private function updateCard($card, $data, $set) {
+        $card->setEdition($set);
+        $card->setName($data['name']);
+        $card->setCollectorNumber($data['collector_number']);
+        $card->setCmc($data['cmc']);
+        $card->setColorIdentity($data['color_identity']);
+        $card->setRarity($data['rarity']);
+        $card->setReleasedAt(new \DateTime($data['released_at']));
+        $card->setIsReprint($data['reprint']);
+        $card->setLayout($data['layout']);
+        $card->setBorderColor($data['border_color']);
+        if (isset($data['prices']['usd'])) $card->setPriceUsd($data['prices']['usd']);
+        if (isset($data['prices']['eur'])) $card->setPriceEur($data['prices']['eur']);
+
+        $this->em->persist($card);
+
+        $this->updateCardFaces($card, $data);
+
+        return $card;
+    }
+
+    private function updateCardFaces(Card $card, $data) {
+        $cardFaces = $card->getFaces();
+
+        // Multiple faces
+        if(isset($data['card_faces'])) {
+            foreach ($data['card_faces'] as $i => $cf) {
+                // Find or create the face
+                $face = null;
+                foreach ($cardFaces as $cardFace) {
+                    if($cardFace->getFaceIndex() === $i) $face = $cardFace;
+                }
+                if(!$face) $face = new Face();
+
+                $face->setCard($card);
+                $face->setFaceIndex($i);
+                $this->updateFace($face, $cf);
+            }
+        }
+        // One face
+        else {
+            // Find or create the face
+            $face = null;
+            if(sizeof($cardFaces)) $face = $cardFaces[0];
+            if(!$face) $face = new Face();
+
+            $face->setCard($card);
+            $face->setFaceIndex(0);
+            $this->updateFace($face, $data);
+        }
+    }
+
+    private function updateFace($face, $data) {
+
+        $face->setName($data['name']);
+        if(isset($data['mana_cost'])) $face->setManaCost($data['mana_cost']);
+        $face->setTypeLine($data['type_line']);
+        if(isset($data['oracle_text'])) $face->setOracleText($data['oracle_text']);
+        if(isset($data['flavor_text'])) $face->setFlavorText($data['flavor_text']);
+        if(isset($data['power'])) $face->setPower($data['power']);
+        if(isset($data['toughness'])) $face->setToughness($data['toughness']);
+        if(isset($data['loyalty'])) $face->setLoyalty($data['loyalty']);
+        if(isset($data['artist'])) $face->setArtist($data['artist']);
+        if(isset($data['watermark'])) $face->setWatermark($data['watermark']);
+        if(isset($data['image_uris']['normal'])) $face->setImageUriNormal($data['image_uris']['normal']);
+        if(isset($data['image_uris']['png'])) $face->setImageUriPng($data['image_uris']['png']);
+
+        $this->em->persist($face);
     }
 }
