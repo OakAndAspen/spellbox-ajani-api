@@ -3,7 +3,6 @@
 namespace App\Command;
 
 use App\Entity\Edition;
-use Cassandra\Date;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,6 +12,7 @@ class UpdateSetsCommand extends Command
 {
     protected static $defaultName = 'app:update-sets';
     private $em;
+    private $setsData = null;
     const SCRYFALL_SETS_INDEX_URL = 'https://api.scryfall.com/sets';
 
     protected function configure(): void
@@ -31,30 +31,37 @@ class UpdateSetsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->getData($output);
+        $output->writeln("Fetching the sets data...");
+        $this->getSetsData();
+        $this->updateSets($output);
         return Command::SUCCESS;
     }
 
-    private function getData($output)
+    private function getSetsData()
     {
         // Fetching the data from Scryfall API
         $data = file_get_contents(self::SCRYFALL_SETS_INDEX_URL);
         $array = json_decode($data, true);
-        $sets = $array["data"];
+        $this->setsData = $array["data"];
+    }
 
+    private function updateSets($output)
+    {
         // Getting the existing sets
         $existingSets = $this->em->getRepository(Edition::class)->findAll();
 
         // Preparing the console output
-        $setsCount = sizeof($sets);
-        $section = $output->section();
-        $section->writeln('Updating sets...');
+        $setsCount = sizeof($this->setsData);
+        $progressSection = $output->section();
+        $setSection = $output->section();
+        $progressSection->overwrite('Updating the sets...');
 
-        foreach ($sets as $i => $s) {
+        foreach ($this->setsData as $i => $s) {
             // Updating the console output
             $name = $s['name'];
             $percent = round($i / $setsCount * 100);
-            $section->overwrite('Updating sets (' . $percent . ' %) - ' . $name);
+            $progressSection->overwrite('Updating the sets ('.$percent.'%)');
+            $setSection->overwrite('Updating ' . $name);
 
             // Checking if the set already exists in the database
             $set = null;
@@ -75,7 +82,8 @@ class UpdateSetsCommand extends Command
 
             $this->em->persist($set);
         }
+        $setSection->overwrite('Saving the sets in the database...');
         $this->em->flush();
-        $section->overwrite('All sets were updated!');
+        $setSection->overwrite('All sets were updated!');
     }
 }

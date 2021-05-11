@@ -41,7 +41,7 @@ class Card
     private $cmc;
 
     /**
-     * @ORM\Column(type="simple_array")
+     * @ORM\Column(type="simple_array", nullable=true)
      */
     private $color_identity = [];
 
