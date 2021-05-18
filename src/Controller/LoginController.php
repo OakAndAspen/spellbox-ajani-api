@@ -80,4 +80,12 @@ class LoginController extends AbstractController
 
         return new JsonResponse(['authKey' => $jwt]);
     }
+
+    /**
+     * @Route("/logout", methods="POST")
+     */
+    public function logout()
+    {
+        return new JsonResponse(['success' => 'User was successufully logged out']);
+    }
 }
