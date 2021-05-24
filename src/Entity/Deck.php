@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity(repositoryClass=DeckRepository::class)
+ * @ORM\HasLifecycleCallbacks
  */
 class Deck
 {
@@ -63,6 +64,7 @@ class Deck
     public function __construct()
     {
         $this->cards = new ArrayCollection();
+        $this->setCreatedAt(new \DateTime());
     }
 
     public function getId(): ?int
@@ -182,5 +184,14 @@ class Deck
         }
 
         return $this;
+    }
+
+    /**
+     * @ORM\PrePersist
+     * @ORM\PreUpdate
+     */
+    public function updateTimestampOnSave(): void
+    {
+        $this->setUpdatedAt(new \DateTime());
     }
 }
